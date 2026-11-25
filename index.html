@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>مطاردة عمر ومريم Pro 🏃‍♂️🏃‍♀️</title>
+<link href="https://googleapis.com" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;user-select:none;-webkit-tap-highlight-color:transparent}
+html,body{background:#090d16;color:#fff;width:100%;height:100%;overflow:hidden;position:fixed;inset:0}
+.top-bar{position:fixed;top:0;left:0;right:0;z-index:20;background:rgba(15,23,42,.92);border-bottom:2px solid #38bdf8}
+header{padding:6px;text-align:center;font-size:16px;font-weight:900;color:#38bdf8}
+.hud{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;font-size:13px;background:#020617}
+.bar-wrap{width:95px;height:10px;background:#1e293b;border-radius:10px;overflow:hidden;border:1px solid #38bdf8}
+#prog{width:10%;height:100%;background:linear-gradient(90deg,#38bdf8,#f472b6);transition:.2s}
+canvas{display:block;margin:auto;background:#1e293b;width:100%;max-width:440px;height:100%}
+.controls{position:fixed;bottom:14px;left:0;right:0;z-index:30;display:flex;justify-content:center;gap:18px;padding:0 15px}
+.btn{width:88px;height:64px;background:rgba(15,23,42,.88);border:2.5px solid #38bdf8;border-radius:18px;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,.6)}
+.btn:active{transform:scale(.92);background:#38bdf8;color:#090d16}
+#overlay{position:fixed;inset:0;background:rgba(9,13,22,.96);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;text-align:center;z-index:99}
+.p-btn{width:275px;padding:15px;margin:8px;border:none;border-radius:16px;font-size:17px;font-weight:900;color:#fff;cursor:pointer}
+.omar{background:linear-gradient(135deg,#0284c7,#38bdf8)}
+.mariam{background:linear-gradient(135deg,#db2777,#f472b6)}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <header>⚡ مطاردة عمر ومريم الكبرى ⚡</header>
+  <div class="hud">
+    <div id="lives">❤️❤️❤️</div>
+    <div>النجوم: <b id="stars" style="color:#facc15">0</b> ⭐</div>
+    <div style="display:flex;align-items:center;gap:5px">الاقتراب: <div class="bar-wrap"><div id="prog"></div></div></div>
+  </div>
+</div>
+
+<canvas id="cv"></canvas>
+
+<div class="controls">
+  <button class="btn" ontouchstart="act('L');return false" onclick="act('L')">➡️</button>
+  <button class="btn" ontouchstart="act('J');return false" onclick="act('J')">⬆️</button>
+  <button class="btn" ontouchstart="act('R');return false" onclick="act('R')">⬅️</button>
+</div>
+
+<div id="overlay">
+  <h1 id="ov-t" style="color:#38bdf8;font-size:25px;margin-bottom:10px">اختر بطلك وابدأ المطاردة!</h1>
+  <p id="ov-d" style="color:#cbd5e1;margin-bottom:20px;max-width:320px;font-size:15px">اجمع النجوم لتزيد سرعتك وتقترب، وتخطَّ العقبات بالأسهم الثلاثة!</p>
+  <button class="p-btn omar" onclick="start('omar')">🚀 العب بعمر (طارد مريم)</button>
+  <button class="p-btn mariam" onclick="start('mariam')">👑 العب بمريم (طاردي عمر)</button>
+</div>
+
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+let W,H,hero='omar',lane=1,jump=0,jv=0,lives=3,stars=0,catchP=10,speed=5.5,roadY=0,items=[],parts=[],run=false,shake=0,rLane=1,step=0;
+
+function resize(){
+  W=cv.width=Math.min(window.innerWidth,440);
+  H=cv.height=window.innerHeight;
+}
+window.onresize=resize;resize();
+
+const actx=new (window.AudioContext||window.webkitAudioContext)();
+function beep(f,t,d){
+  try{let o=actx.createOscillator(),g=actx.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(.15,actx.currentTime);g.gain.exponentialRampToValueAtTime(.01,actx.currentTime+d);o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d);}catch(e){}
+}
+
+function start(who){
+  hero=who;lane=1;jump=0;jv=0;lives=3;stars=0;catchP=10;speed=5.5;items=[];parts=[];run=true;
+  document.getElementById('overlay').style.display='none';
+  updHUD();beep(520,'sine',.2);
+}
+
+function act(k){
+  if(!run)return;
+  if(k==='R'&&lane>0){lane--;beep(300,'triangle',.1);}
+  if(k==='L'&&lane<2){lane++;beep(300,'triangle',.1);}
+  if(k==='J'&&jump===0){jv=15;beep(450,'sine',.25);}
+}
+window.onkeydown=e=>{if(e.key==='ArrowLeft')act('R');if(e.key==='ArrowRight')act('L');if(e.key==='ArrowUp'||e.key===' ')act('J');};
+
+function updHUD(){
+  document.getElementById('lives').innerText='❤️'.repeat(lives)+'🖤'.repeat(3-lives);
+  document.getElementById('stars').innerText=stars;
+  document.getElementById('prog').style.width=Math.min(100,catchP)+'%';
+}
+
+function boom(x,y,col){
+  for(let i=0;i<16;i++)parts.push({x,y,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,l:22,c:col});
+}
+
+function loop(){
+  requestAnimationFrame(loop);
+  ctx.save();
+  if(shake>0){ctx.translate((Math.random()-.5)*10,(Math.random()-.5)*10);shake--;}
+  
+  ctx.fillStyle='#064e3b';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#1e293b';ctx.fillRect(30,0,W-60,H);
+  
+  if(run){roadY=(roadY+speed)%60;step+=0.25;}
+  ctx.strokeStyle='#475569';ctx.lineWidth=3;ctx.setLineDash([30,30]);
+  let lw=(W-60)/3;
+  for(let i=1;i<=2;i++){
+    ctx.beginPath();ctx.moveTo(30+lw*i,roadY-60);ctx.lineTo(30+lw*i,H);ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  for(let y=roadY-60;y<H;y+=120){
+    ctx.fillStyle='#15803d';ctx.beginPath();ctx.arc(15,y,10,0,Math.PI*2);ctx.arc(W-15,y+60,10,0,Math.PI*2);ctx.fill();
+  }
+
+  if(!run){ctx.restore();return;}
+
+  if(jump>0||jv!==0){jump+=jv;jv-=0.85;if(jump<=0){jump=0;jv=0;}}
+  catchP+=0.03;
+  speed=5.5+stars*0.12;
+  updHUD();
+
+  // ضبط الارتفاعات بحيث تكون فوق الأزرار بوضوح تام
+  let rx=30+lw*rLane+lw/2;
+  let ry=125;
+  let px=30+lw*lane+lw/2;
+  let py=(H-125)-(catchP/100)*(H-270);
+
+  if(Math.random()<0.032){
+    let l=Math.floor(Math.random()*3);
+    let type=Math.random()<0.4?'star':'obs';
+    items.push({l,y:60,type});
+    if(Math.random()<0.35)rLane=Math.floor(Math.random()*3);
+  }
+
+  for(let i=items.length-1;i>=0;i--){
+    let it=items[i];
+    it.y+=speed;
+    let ix=30+lw*it.l+lw/2;
+    
+    if(it.type==='star'){
+      ctx.fillStyle='#facc15';ctx.beginPath();ctx.arc(ix,it.y,14,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';ctx.font='bold 16px Arial';ctx.textAlign='center';ctx.fillText('★',ix,it.y+6);
+    }else{
+      ctx.fillStyle='#ef4444';ctx.fillRect(ix-22,it.y-14,44,28);
+      ctx.fillStyle='#fff';ctx.fillRect(ix-18,it.y-4,36,8);
+    }
+
+    if(Math.abs(it.y - py)<24 && it.l===lane){
+      if(it.type==='star'){
+        stars++;catchP+=7;beep(750,'sine',.15);boom(ix,it.y,'#facc15');
+        items.splice(i,1);continue;
+      }else if(jump<22){
+        lives--;catchP=Math.max(5,catchP-15);shake=12;beep(140,'sawtooth',.35);boom(ix,it.y,'#ef4444');
+        items.splice(i,1);
+        if(lives<=0){finish(false);return;}
+        continue;
+      }
+    }
+    if(it.y>H+40)items.splice(i,1);
+  }
+
+  drawBoyOrGirl(rx,ry,hero==='omar'?'girl':'boy',hero==='omar'?'مريم':'عمر',0);
+  drawBoyOrGirl(px,py,hero==='omar'?'boy':'girl',hero==='omar'?'عمر':'مريم',jump);
+
+  for(let i=parts.length-1;i>=0;i--){
+    let p=parts[i];p.x+=p.vx;p.y+=p.vy;p.l--;
+    ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,5,5);
+    if(p.l<=0)parts.splice(i,1);
+  }
+
+  if(catchP>=100)finish(true);
+  ctx.restore();
+}
+
+function drawBoyOrGirl(x,y,type,name,jmp){
+  let sc=1+jmp/95,leg=Math.sin(step)*6;
+  ctx.save();
+  ctx.translate(x,y-jmp);
+  ctx.scale(sc,sc);
+  ctx.fillStyle='rgba(0,0,0,.4)';ctx.beginPath();ctx.ellipse(0,22+jmp/2,18,7,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#fde047';ctx.lineWidth=5;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-6,8);ctx.lineTo(-6,20+leg);ctx.moveTo(6,8);ctx.lineTo(6,20-leg);ctx.stroke();
+  ctx.fillStyle=type==='boy'?'#0284c7':'#ec4899';
+  ctx.beginPath();ctx.arc(0,0,15,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fed7aa';ctx.beginPath();ctx.arc(0,-18,12,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=type==='boy'?'#1e293b':'#facc15';
+  ctx.beginPath();ctx.arc(0,-22,11,Math.PI,0);ctx.fill();
+  ctx.fillStyle=type==='boy'?'#38bdf8':'#f472b6';
+  ctx.fillRect(-26,-52,52,18);
+  ctx.fillStyle='#090d16';ctx.font='bold 12px Cairo';ctx.textAlign='center';ctx.fillText(name,0,-39);
+  ctx.restore();
+}
+
+function finish(win){
+  run=false;
+  if(win){
+    beep(600,'sine',.15);setTimeout(()=>beep(800,'sine',.3),150);
+    document.getElementById('ov-t').innerText=hero==='omar'?"🎉 أحسنت يا عمر! عرفت تمسك مريم ومهربتش منك!":"🎉 أحسنتي يا مريم! عرفتي تمسكي عمر ومهربش منك!";
+    document.getElementById('ov-t').style.color='#4ade80';
+  }else{
+    beep(120,'sawtooth',.5);
+    document.getElementById('ov-t').innerText=hero==='omar'?"😅 مريم هربت منك يا عمر معرفتش تمسكها! واضح إنها سريعة":"😅 عمر هرب منك يا مريم معرفتيش تمسكيه! واضح إنه سريع";
+    document.getElementById('ov-t').style.color='#f87171';
+  }
+  document.getElementById('ov-d').innerText=`جمعت ${stars} نجمة ⭐ خلال المطاردة!`;
+  document.getElementById('overlay').style.display='flex';
+}
+loop();
+</script>
+</body>
+</html>
